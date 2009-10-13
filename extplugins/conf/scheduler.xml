@@ -1,0 +1,88 @@
+<configuration plugin="scheduler">
+
+	<!--
+	You can define as many tasks as you want.
+	Tasks can be one of : daily, hourly, cron
+	Each task is composed of at least one rcon command.
+  
+  Optionnaly for daily task, you can specify hour and minutes.
+  Optionnaly for houly task, you can specify minutes.
+  Cron task follow the Unix cron syntax. See http://www.google.com/search?q=man+crontab+5
+	-->
+
+  <daily name="dayly1">
+    <rcon>bigtext "It's midnight, go to bed kids"</rcon>
+    <rcon>bigtext "seriously"</rcon>
+  </daily>
+	
+  
+  <daily name="dayly1" hour="2" minutes="41">
+    <rcon>bigtext "hi from dayly2"</rcon>
+  </daily>
+  
+  
+  
+  <hourly name="hourly1">
+    <rcon>bigtext "hi from hourly1"</rcon>
+  </hourly>
+	
+  <hourly name="hourly2" minutes="43">
+    <rcon>bigtext "hi from hourly2"</rcon>
+  </hourly>
+	
+
+  
+	
+	<cron name="every3m" 
+    minutes="*/3" 
+    hour="*" 
+    day="*" 
+    month="*" 
+    dow="*"
+    >
+		<rcon>say "^7every3m"</rcon>
+	</cron>
+	
+	<cron name="every4h5m"
+    minutes="5" 
+    hour="*/4" 
+    day="*" 
+    month="*" 
+    dow="*"
+    >
+		<rcon>say "^7every4h5m"</rcon>
+	</cron>
+  
+	
+	<cron name="every2day13h45m"
+    minutes="45" 
+    hour="13" 
+    day="*/2" 
+    month="*" 
+    dow="*"
+    >
+		<rcon>say "^7every2day13h45m"</rcon>
+	</cron>  
+  
+
+	<cron name="newYear"
+    minutes="0" 
+    hour="0" 
+    day="1" 
+    month="1" 
+    dow="*"
+    >
+		<rcon>bigtext "Happy new year !"</rcon>
+	</cron>  
+  
+	<cron name="everyMondayMorningAt7am"
+    minutes="0" 
+    hour="7" 
+    day="*" 
+    month="*" 
+    dow="1"
+    >
+		<rcon>bigtext "mondays, pfff...."</rcon>
+	</cron>  
+  
+</configuration>
