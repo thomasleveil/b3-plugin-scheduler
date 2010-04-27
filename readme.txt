@@ -36,6 +36,9 @@ Changelog
 - correct spelling
 - hours specified in config are now understood in the timezone setup in the main B3 config
 
+27/04/2010 - 1.0 - Courgette
+- config error early detection with userfriendly message
+- can run bfbc2 commands
   
 Support
 -------
