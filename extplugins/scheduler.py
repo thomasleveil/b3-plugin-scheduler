@@ -35,7 +35,11 @@
 # - config error early detection with userfriendly message
 # - can run bfbc2 commands
 #
-__version__ = '1.0'
+# 28/04/2010 - 1.1 - Courgette
+# - fix issue with bfbc2 commands arguments
+# - better handling of command errors
+
+__version__ = '1.1'
 __author__    = 'Courgette'
 
 import thread, time, string, os
@@ -186,10 +190,10 @@ class Task(object):
                         cmdlist = [commandName]
                         for arg in bfbc2node.findall('arg'):
                             cmdlist.append(arg.text)
-                        result = self.plugin.console.write(cmdlist)
+                        result = self.plugin.console.write(tuple(cmdlist))
                         self.plugin.info("bfbc2 command result : %s" % result)
                     except Exception, e:
-                        self.plugin.error(e)
+                        self.plugin.error("task %s : %s" % (self.name, e))
         else:
                 # send rcon commands
                 for cmd in self.config.findall("rcon"):
@@ -197,7 +201,7 @@ class Task(object):
                         result = self.plugin.console.write("%s" % cmd.text)
                         self.plugin.info("rcon command result : %s" % result)
                     except Exception, e:
-                        self.plugin.error(e)
+                        self.plugin.error("task %s : %s" % (self.name, e))
  
 
     def _getScheduledTime(self, attrib):

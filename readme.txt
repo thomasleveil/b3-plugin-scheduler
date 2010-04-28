@@ -39,7 +39,12 @@ Changelog
 27/04/2010 - 1.0 - Courgette
 - config error early detection with userfriendly message
 - can run bfbc2 commands
-  
+
+28/04/2010 - 1.1 - Courgette
+- fix issue with bfbc2 commands arguments
+- better handling of command errors
+
+
 Support
 -------
 
