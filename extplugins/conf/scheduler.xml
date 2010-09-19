@@ -55,34 +55,16 @@
 
 
 
-	<cron name="every3m" 
-    minutes="*/3" 
-    hour="*" 
-    day="*" 
-    month="*" 
-    dow="*"
-    >
+	<cron name="every3m" minutes="*/3" >
 		<rcon>say "^7every3m"</rcon>
 	</cron>
 
-	<cron name="every4h5m"
-    minutes="5" 
-    hour="*/4" 
-    day="*" 
-    month="*" 
-    dow="*"
-    >
+	<cron name="every4h5m" minutes="5" hour="*/4" >
 		<rcon>say "^7every4h5m"</rcon>
 	</cron>
 
 
-	<cron name="every2day13h45m"
-    minutes="45" 
-    hour="13" 
-    day="*/2" 
-    month="*" 
-    dow="*"
-    >
+	<cron name="every2day13h45m" minutes="45" hour="13" day="*/2" >
 		<rcon>say "^7every2day13h45m"</rcon>
 	</cron>  
 
@@ -91,8 +73,7 @@
     minutes="0" 
     hour="0" 
     day="1" 
-    month="1" 
-    dow="*"
+    month="1"
     >
 		<rcon>bigtext "Happy new year !"</rcon>
 	</cron>  
@@ -100,8 +81,6 @@
 	<cron name="everyMondayMorningAt7am"
     minutes="0" 
     hour="7" 
-    day="*" 
-    month="*" 
     dow="1"
     >
 		<rcon>bigtext "mondays, pfff...."</rcon>

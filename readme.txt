@@ -1,7 +1,7 @@
-scheduler plugin for Big Brother Bot (www.bigbrotherbot.com)
+scheduler plugin for Big Brother Bot (www.bigbrotherbot.net)
 ============================================================
 
-By #UbU#Courgette
+By Courgette
 
 
 Description
@@ -23,7 +23,7 @@ Installation
  * copy scheduler.xml into b3/extplugins/conf
  * update your main b3 config file with :
 
-<plugin name="scheduler" priority="18" config="@b3/extplugins/conf/scheduler.xml"/>
+<plugin name="scheduler" config="@b3/extplugins/conf/scheduler.xml" />
 
 
 Changelog
@@ -48,4 +48,4 @@ Changelog
 Support
 -------
 
-http://www.bigbrotherbot.com/forums/index.php?topic=947
+http://www.bigbrotherbot.net/forums/index.php?topic=947
