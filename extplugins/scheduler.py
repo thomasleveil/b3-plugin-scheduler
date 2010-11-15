@@ -38,8 +38,13 @@
 # 28/04/2010 - 1.1 - Courgette
 # - fix issue with bfbc2 commands arguments
 # - better handling of command errors
+#
+# 15/11/2010 - 1.2 - Courgete
+# - now also work for Medal of Honor
+# - changed config file syntax for bfbc2 and moh (old syntax still works)
+# - can specify seconds as in the GNU cron syntax
 
-__version__ = '1.1'
+__version__ = '1.2'
 __author__    = 'Courgette'
 
 import thread, time, string, os
@@ -125,6 +130,7 @@ class Task(object):
     cronTab = None
     plugin = None
     name = None
+    seconds = None
     minutes = None
     hour = None
     day = None
@@ -137,23 +143,24 @@ class Task(object):
         
         self.name = config.attrib['name']
         if not 'name' in config.attrib:
-            self.plugin.error("attribute 'name' not found in task")
+            self.plugin.info("attribute 'name' not found in task")
         else:
             self.name = config.attrib['name']
             
         self.plugin.debug("setting up %s [%s]" % (self.__class__.__name__, self.name) )
-        if self.plugin.console.gameName == 'bfbc2':
-            bfbc2commands = self.config.findall("bfbc2")
-            if len(bfbc2commands) == 0:
-                    raise TaskConfigError('no bfbc2 element found for task %s' % self.name)
-            for cmd in bfbc2commands:
+        if self.plugin.console.gameName in ('bfbc2', 'moh'):
+            frostbitecommands = self.config.findall("frostbite") + self.config.findall("bfbc2")
+            if len(frostbitecommands) == 0:
+                    raise TaskConfigError('no frostbite element found for task %s' % self.name)
+            for cmd in frostbitecommands:
                 if not 'command' in cmd.attrib:
-                    raise TaskConfigError('cannot find \'command\' attribute for a bfbc2 element')
+                    raise TaskConfigError('cannot find \'command\' attribute for a frostbite element')
                 text = cmd.attrib['command']
                 for arg in cmd.findall('arg'):
                     text += " %s" % arg.text
-                self.plugin.debug("bfbc2 : %s" % text)
+                self.plugin.debug("frostbite : %s" % text)
         else:
+            ## classical Q3 rcon command
             rconcommands = self.config.findall("rcon")
             if len(rconcommands) == 0:
                     raise TaskConfigError('no rcon element found for task %s' % self.name)
@@ -168,7 +175,7 @@ class Task(object):
         """
         self._getScheduledTime(self.config.attrib)
         self.cronTab = b3.cron.PluginCronTab(self.plugin, self.runcommands, 
-            0, self.minutes, self.plugin._convertCronHourToUTC(self.hour), self.day, self.month, self.dow)
+            self.seconds, self.minutes, self.plugin._convertCronHourToUTC(self.hour), self.day, self.month, self.dow)
         self.plugin.console.cron + self.cronTab
         
     def cancel(self):
@@ -182,16 +189,17 @@ class Task(object):
     def runcommands(self):
         self.plugin.info("running scheduled commands from %s" % self.name)
 
-        if self.plugin.console.gameName == 'bfbc2':
-                # send bfbc2 commands     
-                for bfbc2node in self.config.findall("bfbc2"):
+        if self.plugin.console.gameName in ('bfbc2', 'moh'):
+                # send frostbite commands     
+                nodes = self.config.findall("frostbite") + self.config.findall("bfbc2")
+                for frostbitenode in nodes:
                     try:
-                        commandName = bfbc2node.attrib['command']
+                        commandName = frostbitenode.attrib['command']
                         cmdlist = [commandName]
-                        for arg in bfbc2node.findall('arg'):
+                        for arg in frostbitenode.findall('arg'):
                             cmdlist.append(arg.text)
                         result = self.plugin.console.write(tuple(cmdlist))
-                        self.plugin.info("bfbc2 command result : %s" % result)
+                        self.plugin.info("frostbite command result : %s" % result)
                     except Exception, e:
                         self.plugin.error("task %s : %s" % (self.name, e))
         else:
@@ -206,36 +214,37 @@ class Task(object):
 
     def _getScheduledTime(self, attrib):
 
+        if not 'seconds' in attrib:
+            self.seconds = 0
+        else:
+            self.seconds = attrib['seconds']
+                    
         if not 'minutes' in attrib:
-            self.plugin.warning("attribute 'minutes' not found in task, using '*' as default")
             self.minutes = '*'
         else:
             self.minutes = attrib['minutes']        
             
         if not 'hour' in attrib:
-            self.plugin.error("attribute 'hour' not found in task, using '*' as default")
             self.hour = '*'
         else:
             self.hour = attrib['hour']
             
         if not 'day' in attrib:
-            self.plugin.error("attribute 'day' not found in task, using '*' as default")
             self.day = '*'
         else:
             self.day = attrib['day']
                         
         if not 'month' in attrib:
-            self.plugin.error("attribute 'month' not found in task, using '*' as default")
             self.month = '*'
         else:
             self.month = attrib['month']
             
         if not 'dow' in attrib:
-            self.plugin.error("attribute 'dow' not found in task, using '*' as default")
             self.dow = '*'
         else:
             self.dow = attrib['dow']
-            
+        
+        self.plugin.info('%s %s %s\t%s %s %s' % (self.seconds, self.minutes, self.hour, self.day, self.month, self.dow))
  
 class HourlyTask(Task):
     def _getScheduledTime(self, attrib):
@@ -273,27 +282,100 @@ class DaylyTask(Task):
         
 if __name__ == '__main__':
     ## tests :
-    from b3.fake import fakeConsole
+    from b3.fake import FakeConsole, fakeConsole
     import time
+    
+    def write(self, *args):
+        """send text to the console"""
+        print "### %r" % args
+        if self.gameName in ('bfbc2','moh'):
+            return ['OK']
+    FakeConsole.write = write
     
     from b3.config import XmlConfigParser
     
-    conf = XmlConfigParser()
-    conf.setXml("""
-    <configuration plugin="scheduler">
-        <cron name="test1">
-            <bfbc2 command="punkBuster.pb_sv_command">
-                <arg>pb_sv_update</arg>
-            </bfbc2>
-        </cron>
-    </configuration>
-    """)
+    def test_classic_syntax():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration plugin="scheduler">
+            <cron name="test0" seconds="0">
+                <rcon>say "hello you"</rcon>
+                <rcon>say "hello world"</rcon>
+            </cron>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'urt41'
+        p = SchedulerPlugin(fakeConsole, conf)
+        p.onStartup()
+    
+    def test_old_bfbc2_syntax():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration plugin="scheduler">
+            <cron name="test1" seconds="5,25">
+                <bfbc2 command="admin.say">
+                    <arg>hello world</arg>
+                    <arg>all</arg>
+                </bfbc2>
+                <bfbc2 command="punkBuster.pb_sv_command">
+                    <arg>pb_sv_update</arg>
+                </bfbc2>
+            </cron>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'bfbc2'
+        p1 = SchedulerPlugin(fakeConsole, conf)
+        p1.onStartup()
+    
+    def test_frostbite_syntax():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration plugin="scheduler">
+            <cron name="test2" seconds="10,30">
+                <frostbite command="admin.say">
+                    <arg>server shuting down</arg>
+                    <arg>all</arg>
+                </frostbite>
+                <frostbite command="admin.shutDown" />
+            </cron>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'moh'
+        p2 = SchedulerPlugin(fakeConsole, conf)
+        p2.onStartup()
+    
+    def test_frostbite_combined_syntaxes():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration plugin="scheduler">
+            <cron name="test3" seconds="15,35">
+                <bfbc2 command="mycommand">
+                    <arg>myArg1</arg>
+                    <arg>myArg2</arg>
+                </bfbc2>
+            </cron>
+            <cron name="test4" seconds="20,40">
+                <frostbite command="mycommand">
+                    <arg>myArg1</arg>
+                    <arg>myArg2</arg>
+                </frostbite>
+            </cron>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'bfbc2'
+        p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onStartup()
     
     
-    ## create an instance of the plugin to test
-    fakeConsole.gameName = 'bfbc2'
-    p = SchedulerPlugin(fakeConsole, conf)
-    p.onStartup()
-
-    time.sleep(60*5)
     
+    
+    
+    test_classic_syntax()
+    test_old_bfbc2_syntax()
+    test_frostbite_syntax()
+    test_frostbite_combined_syntaxes()
+    
+    for i in range(60*5):
+        print time.asctime(time.localtime())
+        time.sleep(1)
+        

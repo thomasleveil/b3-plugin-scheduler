@@ -12,11 +12,11 @@
 	Let say you want to execute "yourCommand arg1 arg2"
 	If your game is based on Quake3 :
 		<rcon>yourCommand arg1 arg2</rcon>
-	If your game is Battlefield Bad Company 2 :
-		<bfbc2 command="yourCommand">
+	If your game is based on Frostbite (BFBC2, MoH, etc) :
+		<frostbite command="yourCommand">
 			<arg>argument 1</arg>
 			<arg>argument 2</arg>
-		</bfbc2>
+		</frostbite>
 		
 	Example : 
 		If you want to run the punkbuster command 'pb_sv_update' every night at 3:30 am
@@ -24,11 +24,11 @@
 		<daily name="myDailyPBupdate" hour="3" minutes="30">
 			<rcon>pb_sv_update</rcon>
 		</daily>
-	for BFBC2 :
+	for Frostbite like games :
 		<daily name="myDailyPBupdate" hour="3" minutes="30">
-			<bfbc2 command="punkBuster.pb_sv_command">
+			<frostbite command="punkBuster.pb_sv_command">
 				<arg>pb_sv_update</arg>
-			</bfbc2>
+			</frostbite>
 		</daily>
 	-->
 
