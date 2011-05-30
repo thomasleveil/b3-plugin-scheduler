@@ -44,10 +44,13 @@ Changelog
 - fix issue with bfbc2 commands arguments
 - better handling of command errors
 
-15/11/2010 - 1.2 - Courgete
+15/11/2010 - 1.2 - Courgette
 - now also work for Medal of Honor
 - changed config file syntax for bfbc2 and moh (old syntax still works)
 - can specify seconds as in the GNU cron syntax
+
+30/05/2011 - 1.2.1 - Courgette
+- fix bug in hourly and daily tasks introduced in 1.2
 
 
 Support

@@ -39,12 +39,15 @@
 # - fix issue with bfbc2 commands arguments
 # - better handling of command errors
 #
-# 15/11/2010 - 1.2 - Courgete
+# 15/11/2010 - 1.2 - Courgette
 # - now also work for Medal of Honor
 # - changed config file syntax for bfbc2 and moh (old syntax still works)
 # - can specify seconds as in the GNU cron syntax
-
-__version__ = '1.2'
+#
+# 30/05/2011 - 1.2.1 - Courgette
+# - fix bug in hourly and daily tasks introduced in 1.2
+#
+__version__ = '1.2.1'
 __author__    = 'Courgette'
 
 import thread, time, string, os
@@ -248,6 +251,7 @@ class Task(object):
  
 class HourlyTask(Task):
     def _getScheduledTime(self, attrib):
+        self.seconds = 0
 
         if not 'minutes' in attrib:
             self.plugin.debug("default minutes : 0. Provide a 'minutes' attribute to override")
@@ -262,7 +266,8 @@ class HourlyTask(Task):
         
 class DaylyTask(Task):
     def _getScheduledTime(self, attrib):
-    
+        self.seconds = 0
+
         if not 'hour' in attrib:
             self.plugin.debug("default hour : 0. Provide a 'hour' attribute to override")
             self.hour = 0
@@ -366,16 +371,50 @@ if __name__ == '__main__':
         p3 = SchedulerPlugin(fakeConsole, conf)
         p3.onStartup()
     
+    def test_daily():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration>
+            <daily name="dayly1" hour="1" minutes="17">
+                <rcon>say "^9Nightime maprotation in effect."</rcon>
+                <rcon>set sv_maprotation "gametype ctf map mp_carentan gametype ctf map mp_toujane gametype ctf map mp_buhlert gametype ctf map mp_railyard gametype ctf map mp_sfrance_final gametype ctf map mp_leningrad gametype ctf map mp_farmhouse gametype ctf map mp_decoy gametype ctf map mp_carentan gametype ctf map mp_dawnville gametype ctf map mp_matmata gametype ctf map mp_breakout gametype ctf map mp_burgundy"</rcon>
+            </daily>
+
+            <daily name="dayly2" hour="10" minutes="55">
+                <rcon>say "^9Daytime maprotation in effect."</rcon>
+                <rcon>set sv_maprotation "gametype ctf map mp_carentan gametype ctf map mp_toujane gametype ctf map mp_xfireb gametype ctf map rnr_neuville gametype ctf map mp_buhlert gametype ctf map mp_railyard gametype ctf map mp_farmhouse gametype ctf map mp_decoy gametype ctf map mp_carentan gametype ctf map mp_alcazaba gametype ctf map mp_dawnville gametype ctf map mp_powcamp gametype ctf map mp_matmata gametype ctf map mp_breakout gametype ctf map mp_burgundy gametype ctf map mp_canal3 gametype ctf map mp_destroyed_village gametype ctf map mp_trainstation"</rcon>
+            </daily>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'urt41'
+        p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onStartup()
+    
+    def test_hourly():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration>
+            <hourly name="hourly1" minutes="17">
+                <rcon>say "^9Nightime maprotation in effect."</rcon>
+                <rcon>set sv_maprotation "gametype ctf map mp_carentan gametype ctf map mp_toujane gametype ctf map mp_buhlert gametype ctf map mp_railyard gametype ctf map mp_sfrance_final gametype ctf map mp_leningrad gametype ctf map mp_farmhouse gametype ctf map mp_decoy gametype ctf map mp_carentan gametype ctf map mp_dawnville gametype ctf map mp_matmata gametype ctf map mp_breakout gametype ctf map mp_burgundy"</rcon>
+            </hourly>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'urt41'
+        p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onStartup()
     
     
     
     
-    test_classic_syntax()
-    test_old_bfbc2_syntax()
-    test_frostbite_syntax()
-    test_frostbite_combined_syntaxes()
-    
-    for i in range(60*5):
-        print time.asctime(time.localtime())
-        time.sleep(1)
-        
+    test_daily()
+    #test_hourly()
+#    test_classic_syntax()
+#    test_old_bfbc2_syntax()
+#    test_frostbite_syntax()
+#    test_frostbite_combined_syntaxes()
+#    
+#    for i in range(60*5):
+#        print time.asctime(time.localtime())
+#        time.sleep(1)
+#        

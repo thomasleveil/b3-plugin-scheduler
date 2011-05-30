@@ -32,14 +32,14 @@
 		</daily>
 	-->
 
-	<daily name="dayly1">
+	<daily name="daily1">
 		<rcon>bigtext "It's midnight, go to bed kids"</rcon>
 		<rcon>bigtext "seriously"</rcon>
 	</daily>
 
 
-	<daily name="dayly1" hour="2" minutes="41">
-		<rcon>bigtext "hi from dayly2"</rcon>
+	<daily name="daily1" hour="2" minutes="41">
+		<rcon>bigtext "hi from daily2"</rcon>
 	</daily>
 
 
