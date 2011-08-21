@@ -66,4 +66,4 @@ Changelog
 Support
 -------
 
-http://www.bigbrotherbot.net/forums/index.php?topic=947
+http://forum.bigbrotherbot.net/plugins-by-courgette/scheduler-plugin/
