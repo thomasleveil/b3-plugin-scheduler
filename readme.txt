@@ -12,9 +12,15 @@ This plugin as been made to allow you to easily setup scheduled rcon commands.
 Features :
 ----------
 
- * hourly tasks
- * daily tasks
+Will schedule tasks of type :
+ * hourly
+ * daily
  * cron like tasks (http://www.google.com/search?q=man+crontab+5)
+ * restart
+ 
+which can define rcon commands to be run on your game server or which can
+enable or disable any B3 plugin. 
+
 
 Installation
 ------------
@@ -51,6 +57,10 @@ Changelog
 
 30/05/2011 - 1.2.1 - Courgette
 - fix bug in hourly and daily tasks introduced in 1.2
+
+21/08/2011 - 1.3 - Courgette
+- add restart tasks (which are executed when B3 starts/restarts
+- add enable_plugin and disable_plugin commands
 
 
 Support

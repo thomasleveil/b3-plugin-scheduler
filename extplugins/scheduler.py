@@ -47,10 +47,14 @@
 # 30/05/2011 - 1.2.1 - Courgette
 # - fix bug in hourly and daily tasks introduced in 1.2
 #
-__version__ = '1.2.1'
+# 21/08/2011 - 1.3 - Courgette
+# - add restart tasks (which are executed when B3 starts/restarts
+# - add enable_plugin and disable_plugin commands
+#
+__version__ = '1.3'
 __author__    = 'Courgette'
 
-import thread, time, string, os
+import thread, threading, time, string, os
 import b3, b3.events, b3.plugin
 
 
@@ -58,12 +62,10 @@ import b3, b3.events, b3.plugin
 class SchedulerPlugin(b3.plugin.Plugin):
     _tasks = None
     _tzOffset = 0
+    _restart_tasks = set()
     
-    def onStartup(self):
-        pass
-        
     def onLoadConfig(self):
-        
+
         # remove eventual existing tasks
         if self._tasks:
             for t in self._tasks:
@@ -71,13 +73,22 @@ class SchedulerPlugin(b3.plugin.Plugin):
     
         # Get time_zone from main B3 config
         tzName = self.console.config.get('b3', 'time_zone').upper()
-        self._tzOffest = b3.timezones.timezones[tzName]
+        self._tzOffset = b3.timezones.timezones[tzName]
     
         # load cron tasks from config
         self._tasks = []
+
+        for taskconfig in self.config.get('restart'):
+            try:
+                task = RestartTask(self, taskconfig)
+                self._tasks.append(task)
+                self.info("restart task [%s] loaded" % task.name)
+            except Exception, e:
+                self.error(e)
+
         for taskconfig in self.config.get('cron'):
             try:
-                task = Task(self, taskconfig)
+                task = CronTask(self, taskconfig)
                 self._tasks.append(task)
                 self.info("cron task [%s] loaded" % task.name)
             except Exception, e:
@@ -104,7 +115,13 @@ class SchedulerPlugin(b3.plugin.Plugin):
 
         self.debug("%d tasks scheduled"% len(self._tasks))
 
-        
+    def onStartup(self):
+        # run RestartTasks
+        for task in self._restart_tasks:
+            try:
+                task.runcommands()
+            except Exception, e:
+                self.error("could not run task %s : %s", (task.name, e))
 
  
     def onEvent(self, event):
@@ -120,25 +137,23 @@ class SchedulerPlugin(b3.plugin.Plugin):
             h,divider = hourcron.split('/')
             if h.strip() == '*':
                 return hourcron
-            UTChour = (int(h.strip()) - self._tzOffest)%24
+            UTChour = (int(h.strip()) - self._tzOffset)%24
             return "%d/%s" % (UTChour, divider)
         else:
-            return (int(hourcron.strip()) - self._tzOffest)%24
+            UTChour = (int(hourcron.strip()) - self._tzOffset)%24
+            tz = str(self._tzOffset)
+            if not tz.startswith('-'):
+                tz = '+' + tz
+            self.debug("%s (UTC%s) -> %s UTC" % (hourcron, tz, UTChour))
+            return UTChour
  
  
 class TaskConfigError(Exception): pass
 
 class Task(object):
     config = None
-    cronTab = None
     plugin = None
     name = None
-    seconds = None
-    minutes = None
-    hour = None
-    day = None
-    month = None
-    dow = None
     
     def __init__(self, plugin, config):
         self.plugin = plugin
@@ -149,12 +164,19 @@ class Task(object):
             self.plugin.info("attribute 'name' not found in task")
         else:
             self.name = config.attrib['name']
-            
+
         self.plugin.debug("setting up %s [%s]" % (self.__class__.__name__, self.name) )
+
+        num_commands_found = 0
+        num_commands_found += self._init_rcon_commands()
+        num_commands_found += self._init_enable_plugin_commands()
+        num_commands_found += self._init_disable_plugin_commands()
+        if num_commands_found == 0:
+            raise TaskConfigError('no action found for task %s' % self.name)
+
+    def _init_rcon_commands(self):
         if self.plugin.console.gameName in ('bfbc2', 'moh'):
             frostbitecommands = self.config.findall("frostbite") + self.config.findall("bfbc2")
-            if len(frostbitecommands) == 0:
-                    raise TaskConfigError('no frostbite element found for task %s' % self.name)
             for cmd in frostbitecommands:
                 if not 'command' in cmd.attrib:
                     raise TaskConfigError('cannot find \'command\' attribute for a frostbite element')
@@ -162,14 +184,131 @@ class Task(object):
                 for arg in cmd.findall('arg'):
                     text += " %s" % arg.text
                 self.plugin.debug("frostbite : %s" % text)
+                return len(frostbitecommands)
         else:
             ## classical Q3 rcon command
             rconcommands = self.config.findall("rcon")
-            if len(rconcommands) == 0:
-                    raise TaskConfigError('no rcon element found for task %s' % self.name)
             for cmd in rconcommands:
                 self.plugin.debug("rcon : %s" % cmd.text)
-            
+            return len(rconcommands)
+
+    def _init_enable_plugin_commands(self):
+        commands = self.config.findall("enable_plugin")
+        for cmd in commands:
+            if not 'plugin' in cmd.attrib:
+                raise TaskConfigError('cannot find \'plugin\' attribute for a enable_plugin element')
+            if not self.plugin.console.getPlugin(cmd.attrib['plugin']):
+                raise TaskConfigError('cannot find plugin %s' % cmd.attrib['plugin'])
+            self.plugin.debug("enable_plugin : %s" % cmd.attrib['plugin'])
+        return len(commands)
+
+    def _init_disable_plugin_commands(self):
+        commands = self.config.findall("disable_plugin")
+        for cmd in commands:
+            if not 'plugin' in cmd.attrib:
+                raise TaskConfigError('cannot find \'plugin\' attribute for a disable_plugin element')
+            if not self.plugin.console.getPlugin(cmd.attrib['plugin']):
+                raise TaskConfigError('cannot find plugin %s' % cmd.attrib['plugin'])
+            self.plugin.debug("disable_plugin : %s" % cmd.attrib['plugin'])
+        return len(commands)
+
+    def runcommands(self):
+        self.plugin.info("running scheduled commands from %s" % self.name)
+        self._run_rcon_commands()
+        self._run_enable_plugin_commands()
+        self._run_disable_plugin_commands()
+
+    def _run_rcon_commands(self):
+        if self.plugin.console.gameName in ('bfbc2', 'moh'):
+            # send frostbite commands
+            nodes = self.config.findall("frostbite") + self.config.findall("bfbc2")
+            for frostbitenode in nodes:
+                try:
+                    commandName = frostbitenode.attrib['command']
+                    cmdlist = [commandName]
+                    for arg in frostbitenode.findall('arg'):
+                        cmdlist.append(arg.text)
+                    result = self.plugin.console.write(tuple(cmdlist))
+                    self.plugin.info("frostbite command result : %s" % result)
+                except Exception, e:
+                    self.plugin.error("task %s : %s" % (self.name, e))
+        else:
+            # send rcon commands
+            for cmd in self.config.findall("rcon"):
+                try:
+                    result = self.plugin.console.write("%s" % cmd.text)
+                    self.plugin.info("rcon command result : %s" % result)
+                except Exception, e:
+                    self.plugin.error("task %s : %s" % (self.name, e))
+
+    def _run_enable_plugin_commands(self):
+        for cmd in self.config.findall("enable_plugin"):
+            try:
+                pluginName = cmd.attrib['plugin'].strip().lower()
+                plugin = self.plugin.console.getPlugin(pluginName)
+                if plugin:
+                    if plugin.isEnabled():
+                        self.plugin.info('Plugin %s is already enabled.' % pluginName)
+                    else:
+                        plugin.enable()
+                        self.plugin.info('Plugin %s is now ON' % pluginName)
+                else:
+                    self.plugin.warn('No plugin named %s loaded.' % pluginName)
+            except Exception, e:
+                self.plugin.error("task %s : %s" % (self.name, e))
+
+    def _run_disable_plugin_commands(self):
+        for cmd in self.config.findall("disable_plugin"):
+            try:
+                pluginName = cmd.attrib['plugin'].strip().lower()
+                plugin = self.plugin.console.getPlugin(pluginName)
+                if plugin:
+                    if not plugin.isEnabled():
+                        self.plugin.info('Plugin %s is already disabled.' % pluginName)
+                    else:
+                        plugin.disable()
+                        self.plugin.info('Plugin %s is now OFF' % pluginName)
+                else:
+                    self.plugin.warn('No plugin named %s loaded.' % pluginName)
+            except Exception, e:
+                self.plugin.error("task %s : %s" % (self.name, e))
+
+class RestartTask(Task):
+    def __init__(self, plugin, config):
+        Task.__init__(self, plugin, config)
+        self.schedule()
+
+    def schedule(self):
+        """
+        schedule this task
+        """
+        self.plugin._restart_tasks.add(self)
+
+    def cancel(self):
+        """
+        remove this task from schedule
+        """
+        self.plugin._restart_tasks.remove(self)
+
+    def runcommands(self):
+        if 'delay' in self.config.attrib:
+            delay_minutes = b3.functions.time2minutes(self.config.attrib['delay'])
+            threading.Timer(delay_minutes * 60, Task.runcommands, [self]).start()
+        else:
+            Task.runcommands(self)
+
+
+class CronTask(Task):
+    cronTab = None
+    seconds = None
+    minutes = None
+    hour = None
+    day = None
+    month = None
+    dow = None
+
+    def __init__(self, plugin, config):
+        Task.__init__(self, plugin, config)
         self.schedule()
         
     def schedule(self):
@@ -188,32 +327,6 @@ class Task(object):
         if self.cronTab:
             self.plugin.info("canceling scheduled task [%s]" % self.name)
             self.plugin.console.cron - self.cronTab
-        
-    def runcommands(self):
-        self.plugin.info("running scheduled commands from %s" % self.name)
-
-        if self.plugin.console.gameName in ('bfbc2', 'moh'):
-                # send frostbite commands     
-                nodes = self.config.findall("frostbite") + self.config.findall("bfbc2")
-                for frostbitenode in nodes:
-                    try:
-                        commandName = frostbitenode.attrib['command']
-                        cmdlist = [commandName]
-                        for arg in frostbitenode.findall('arg'):
-                            cmdlist.append(arg.text)
-                        result = self.plugin.console.write(tuple(cmdlist))
-                        self.plugin.info("frostbite command result : %s" % result)
-                    except Exception, e:
-                        self.plugin.error("task %s : %s" % (self.name, e))
-        else:
-                # send rcon commands
-                for cmd in self.config.findall("rcon"):
-                    try:
-                        result = self.plugin.console.write("%s" % cmd.text)
-                        self.plugin.info("rcon command result : %s" % result)
-                    except Exception, e:
-                        self.plugin.error("task %s : %s" % (self.name, e))
- 
 
     def _getScheduledTime(self, attrib):
 
@@ -249,7 +362,7 @@ class Task(object):
         
         self.plugin.info('%s %s %s\t%s %s %s' % (self.seconds, self.minutes, self.hour, self.day, self.month, self.dow))
  
-class HourlyTask(Task):
+class HourlyTask(CronTask):
     def _getScheduledTime(self, attrib):
         self.seconds = 0
 
@@ -264,7 +377,7 @@ class HourlyTask(Task):
         self.month = '*'
         self.dow = '*'
         
-class DaylyTask(Task):
+class DaylyTask(CronTask):
     def _getScheduledTime(self, attrib):
         self.seconds = 0
 
@@ -311,6 +424,7 @@ if __name__ == '__main__':
         """)
         fakeConsole.gameName = 'urt41'
         p = SchedulerPlugin(fakeConsole, conf)
+        p.onLoadConfig()
         p.onStartup()
     
     def test_old_bfbc2_syntax():
@@ -330,6 +444,7 @@ if __name__ == '__main__':
         """)
         fakeConsole.gameName = 'bfbc2'
         p1 = SchedulerPlugin(fakeConsole, conf)
+        p1.onLoadConfig()
         p1.onStartup()
     
     def test_frostbite_syntax():
@@ -347,6 +462,7 @@ if __name__ == '__main__':
         """)
         fakeConsole.gameName = 'moh'
         p2 = SchedulerPlugin(fakeConsole, conf)
+        p2.onLoadConfig()
         p2.onStartup()
     
     def test_frostbite_combined_syntaxes():
@@ -369,18 +485,40 @@ if __name__ == '__main__':
         """)
         fakeConsole.gameName = 'bfbc2'
         p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onLoadConfig()
+        p3.onStartup()
+
+    def test_plugin_tasks():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration plugin="scheduler">
+            <cron name="test_plugin_enable" seconds="0,10,20,30,40,50">
+                <enable_plugin plugin="admin"/>
+            </cron>
+            <cron name="test_plugin_disable" seconds="5,15,25,35,45,55">
+                <disable_plugin plugin="admin"/>
+            </cron>
+            <cron name="test_plugin_fail">
+                <enable_plugin plugin="foo"/>
+                <disable_plugin plugin="bar"/>
+            </cron>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'iourt41'
+        p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onLoadConfig()
         p3.onStartup()
     
     def test_daily():
         conf = XmlConfigParser()
         conf.setXml("""
         <configuration>
-            <daily name="dayly1" hour="1" minutes="17">
+            <daily name="dayly1" hour="19" minutes="11">
                 <rcon>say "^9Nightime maprotation in effect."</rcon>
                 <rcon>set sv_maprotation "gametype ctf map mp_carentan gametype ctf map mp_toujane gametype ctf map mp_buhlert gametype ctf map mp_railyard gametype ctf map mp_sfrance_final gametype ctf map mp_leningrad gametype ctf map mp_farmhouse gametype ctf map mp_decoy gametype ctf map mp_carentan gametype ctf map mp_dawnville gametype ctf map mp_matmata gametype ctf map mp_breakout gametype ctf map mp_burgundy"</rcon>
             </daily>
 
-            <daily name="dayly2" hour="10" minutes="55">
+            <daily name="dayly2" hour="19" minutes="12">
                 <rcon>say "^9Daytime maprotation in effect."</rcon>
                 <rcon>set sv_maprotation "gametype ctf map mp_carentan gametype ctf map mp_toujane gametype ctf map mp_xfireb gametype ctf map rnr_neuville gametype ctf map mp_buhlert gametype ctf map mp_railyard gametype ctf map mp_farmhouse gametype ctf map mp_decoy gametype ctf map mp_carentan gametype ctf map mp_alcazaba gametype ctf map mp_dawnville gametype ctf map mp_powcamp gametype ctf map mp_matmata gametype ctf map mp_breakout gametype ctf map mp_burgundy gametype ctf map mp_canal3 gametype ctf map mp_destroyed_village gametype ctf map mp_trainstation"</rcon>
             </daily>
@@ -388,13 +526,14 @@ if __name__ == '__main__':
         """)
         fakeConsole.gameName = 'urt41'
         p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onLoadConfig()
         p3.onStartup()
     
     def test_hourly():
         conf = XmlConfigParser()
         conf.setXml("""
         <configuration>
-            <hourly name="hourly1" minutes="17">
+            <hourly name="hourly1" minutes="13">
                 <rcon>say "^9Nightime maprotation in effect."</rcon>
                 <rcon>set sv_maprotation "gametype ctf map mp_carentan gametype ctf map mp_toujane gametype ctf map mp_buhlert gametype ctf map mp_railyard gametype ctf map mp_sfrance_final gametype ctf map mp_leningrad gametype ctf map mp_farmhouse gametype ctf map mp_decoy gametype ctf map mp_carentan gametype ctf map mp_dawnville gametype ctf map mp_matmata gametype ctf map mp_breakout gametype ctf map mp_burgundy"</rcon>
             </hourly>
@@ -402,19 +541,49 @@ if __name__ == '__main__':
         """)
         fakeConsole.gameName = 'urt41'
         p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onLoadConfig()
         p3.onStartup()
     
+    def test_restart():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration>
+            <restart name="at restart">
+                <rcon>say "we just restarted"</rcon>
+            </restart>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'urt41'
+        p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onLoadConfig()
+        p3.onStartup()
     
+    def test_restart_with_delay():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration>
+            <restart name="at restart + 7s" delay="7s">
+                <rcon>say "we just restarted 7s ago"</rcon>
+            </restart>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'urt41'
+        p3 = SchedulerPlugin(fakeConsole, conf)
+        p3.onLoadConfig()
+        p3.onStartup()
     
-    
-    test_daily()
+    #test_daily()
     #test_hourly()
-#    test_classic_syntax()
-#    test_old_bfbc2_syntax()
-#    test_frostbite_syntax()
-#    test_frostbite_combined_syntaxes()
-#    
-#    for i in range(60*5):
-#        print time.asctime(time.localtime())
-#        time.sleep(1)
-#        
+    #test_restart()
+    test_restart_with_delay()
+    #test_classic_syntax()
+    #test_old_bfbc2_syntax()
+    #test_frostbite_syntax()
+    #test_frostbite_combined_syntaxes()
+    #test_plugin_tasks()
+
+
+    for i in range(60):
+        print time.asctime(time.localtime())
+        time.sleep(5)
+
