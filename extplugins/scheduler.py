@@ -51,12 +51,16 @@
 # - add restart tasks (which are executed when B3 starts/restarts
 # - add enable_plugin and disable_plugin commands
 #
-__version__ = '1.3'
+# 06/10/2012 - 1.4 - Courgette
+# - add support for BF3
+#
+__version__ = '1.4'
 __author__    = 'Courgette'
 
-import thread, threading, time, string, os
-import b3, b3.events, b3.plugin
+import threading, time
+import b3, b3.plugin
 
+FROSTBITE_GAMES = ('bfbc2', 'moh', 'bf3')
 
 #--------------------------------------------------------------------------------------------------
 class SchedulerPlugin(b3.plugin.Plugin):
@@ -175,7 +179,7 @@ class Task(object):
             raise TaskConfigError('no action found for task %s' % self.name)
 
     def _init_rcon_commands(self):
-        if self.plugin.console.gameName in ('bfbc2', 'moh'):
+        if self.plugin.console.gameName in FROSTBITE_GAMES:
             frostbitecommands = self.config.findall("frostbite") + self.config.findall("bfbc2")
             for cmd in frostbitecommands:
                 if not 'command' in cmd.attrib:
@@ -571,16 +575,36 @@ if __name__ == '__main__':
         p3 = SchedulerPlugin(fakeConsole, conf)
         p3.onLoadConfig()
         p3.onStartup()
-    
+
+    def test_bf3():
+        conf = XmlConfigParser()
+        conf.setXml("""
+        <configuration plugin="scheduler">
+            <cron name="every3m" minutes="*/3">
+                <frostbite command="yell">
+                    <arg>my text</arg>
+                    <arg>10</arg>
+                    <arg>all</arg>
+                </frostbite>
+            </cron>
+        </configuration>
+        """)
+        fakeConsole.gameName = 'bf3'
+        p2 = SchedulerPlugin(fakeConsole, conf)
+        p2.onLoadConfig()
+        p2.onStartup()
+
+
     #test_daily()
     #test_hourly()
     #test_restart()
-    test_restart_with_delay()
+    #test_restart_with_delay()
     #test_classic_syntax()
     #test_old_bfbc2_syntax()
     #test_frostbite_syntax()
     #test_frostbite_combined_syntaxes()
     #test_plugin_tasks()
+    test_bf3()
 
 
     for i in range(60):

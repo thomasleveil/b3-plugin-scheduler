@@ -62,6 +62,10 @@ Changelog
 - add restart tasks (which are executed when B3 starts/restarts
 - add enable_plugin and disable_plugin commands
 
+06/10/2012 - 1.4 - Courgette
+- add support for BF3
+
+
 
 Support
 -------
