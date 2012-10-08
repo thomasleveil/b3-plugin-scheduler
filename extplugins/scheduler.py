@@ -53,8 +53,11 @@
 #
 # 06/10/2012 - 1.4 - Courgette
 # - add support for BF3
+# 08/10/2012 - 1.4.1 - Courgette
+# - fix support for BF3
 #
-__version__ = '1.4'
+#
+__version__ = '1.4.1'
 __author__    = 'Courgette'
 
 import threading, time
@@ -223,7 +226,7 @@ class Task(object):
         self._run_disable_plugin_commands()
 
     def _run_rcon_commands(self):
-        if self.plugin.console.gameName in ('bfbc2', 'moh'):
+        if self.plugin.console.gameName in FROSTBITE_GAMES:
             # send frostbite commands
             nodes = self.config.findall("frostbite") + self.config.findall("bfbc2")
             for frostbitenode in nodes:
@@ -410,7 +413,7 @@ if __name__ == '__main__':
     def write(self, *args):
         """send text to the console"""
         print "### %r" % args
-        if self.gameName in ('bfbc2','moh'):
+        if self.gameName in FROSTBITE_GAMES:
             return ['OK']
     FakeConsole.write = write
     
