@@ -74,3 +74,6 @@ Support
 -------
 
 http://forum.bigbrotherbot.net/plugins-by-courgette/scheduler-plugin/
+
+
+[B3]: http://www.bigbrotherbot.net/ "BigBrotherBot (B3)"
