@@ -1,13 +1,16 @@
-scheduler plugin for Big Brother Bot (www.bigbrotherbot.net)
-============================================================
-
-By Courgette
-
+scheduler plugin for BigBrotherBot [![BigBrotherBot](http://i.imgur.com/7sljo4G.png)][B3]
+==================================
 
 Description
 -----------
 
 This plugin as been made to allow you to easily setup scheduled rcon commands.
+
+
+******
+*NOTE: since B3 v1.10.5 beta this plugin has been included in the standard plugins set, thus all patches and updates will be performed in the official B3 repository.*
+******
+
 
 Features :
 ----------
